@@ -31,7 +31,7 @@ ADD aster.wafcfg_scif_std.py /work/aster/src/wafcfg/scif_std.py
 # configure && build
 RUN cd /work/aster/src && \
     ./waf configure --use-config=scif_std --prefix=/scif/apps/aster --install-tests && \
-    ./waf_seq build
+    ./waf build
 
 # install
 RUN cd /work/aster/src && \
