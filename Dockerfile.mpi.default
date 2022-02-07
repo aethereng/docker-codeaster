@@ -1,0 +1,127 @@
+FROM aethereng/codeaster-common:latest as builder
+
+# set user
+USER root
+
+# use code aster vversion
+ENV ASTER_VERSION=15.5.1
+
+# include libraries
+ENV LD_LIBRARY_PATH=/scif/apps/hdf5/lib:/scif/apps/med/lib:/scif/apps/metis/lib:/scif/apps/mumps_mpi/lib:/scif/apps/scotch_mpi/lib:$LD_LIBRARY_PATH
+ENV LIBPATH=/scif/apps/hdf5/lib:/scif/apps/med/lib:/scif/apps/metis/lib:/scif/apps/mumps_mpi/lib:/scif/apps/scotch_mpi/lib:$LIBPATH
+ENV INCLUDES=/scif/apps/hdf5/include:/scif/apps/med/include:/scif/apps/metis/include:/scif/apps/mumps_mpi/include:/scif/apps/mumps_mpi/include_mpi:/scif/apps/scotch_mpi/include:$INCLUDES
+
+# create symlink to lib64
+RUN ln -s /usr/lib/x86_64-linux-gnu/ /usr/lib64
+
+# update devtools
+RUN cd /work/aster/devtools && \
+    hg pull --rev default && \
+    hg update default
+
+# update codeaster to $VERSION
+RUN cd /work/aster/src && \
+    hg pull --rev $ASTER_VERSION && \
+    hg update $ASTER_VERSION
+
+# add waf config files to src 
+RUN mkdir -p /work/aster/src/wafcfg 
+ADD aster.wafcfg_scif_boost.py /work/aster/src/wafcfg/scif_boost.py
+ADD aster.wafcfg_scif_std.py /work/aster/src/wafcfg/scif_std.py
+ADD aster.wafcfg_scif_mpi.py /work/aster/src/wafcfg/scif_mpi.py
+
+# configure && build
+RUN cd /work/aster/src && \
+    ./waf_mpi configure --use-config=scif_std,scif_boost --prefix=/scif/apps/aster --install-tests && \
+    ./waf_mpi build
+
+# install
+RUN cd /work/aster/src && \
+    ./waf_mpi install
+
+# move testcases to minimize binary image size
+RUN mv /scif/apps/aster/share/aster/tests /work/aster/tests && \
+    mkdir /scif/apps/aster/share/aster/tests && \
+    for name in forma01a hsnv100a pynl01a sdll100a sslv155a ssnv128a zzzz100f; do \
+        mv /work/aster/tests/${name}* /scif/apps/aster/share/aster/tests/; \
+    done
+
+RUN rm /work/*.tar.gz
+RUN rm -rf /work/aster/tests
+
+# binary installation
+# TODO: "-dev" could probably be removed
+FROM ubuntu:18.04
+
+ENV DEBIAN_FRONTEND noninteractive
+
+# Base system + prerequisites
+# Show all the dependencies of each prerequisite even if some packages are
+# repeated
+RUN apt-get update && \
+    apt-get upgrade -y --with-new-pkgs -o Dpkg::Options::="--force-confold" && \
+    apt-get install -y \
+        # base system \
+        cmake \
+        g++ \
+        gcc \
+        gfortran \
+        locales \
+        make \
+        mercurial \
+        wget \
+        # added for... \
+        # hdf5 \
+        zlib1g-dev \
+        # med \
+        python3-dev \
+        # scotch \
+        bison \
+        flex \
+        zlib1g-dev \
+        # mumps \
+        libopenblas-dev \
+        python3-dev \
+        python3-numpy \
+        # tfel
+        libboost-numpy-dev \
+        libboost-python-dev \
+        # parmetis
+        libopenmpi-dev \
+        libblacs-mpi-dev \
+        libscalapack-openmpi-dev \
+        # asrun
+        gdb \
+        tk \
+        xterm \
+        # external tools called by aster \
+        gmsh \
+        grace \
+        && \
+    locale-gen en_GB.UTF-8 en_US.UTF-8 fr_FR.UTF-8 && \
+    update-locale LANG=en_US.UTF-8 LC_MESSAGES=POSIX
+
+ENV LANG=en_US.UTF-8 LC_MESSAGES=POSIX
+
+ENV LD_LIBRARY_PATH=/scif/apps/tfel/lib:/scif/apps/hdf5/lib:/scif/apps/med/lib:/scif/apps/metis/lib:/scif/apps/mumps_mpi/lib:/scif/apps/scotch_mpi/lib:$LD_LIBRARY_PATH
+ENV LIBPATH=/scif/apps/hdf5/lib:/scif/apps/med/lib:/scif/apps/metis/lib:/scif/apps/mumps_mpi/lib:/scif/apps/scotch_mpi/lib:$LIBPATH
+ENV INCLUDES=/scif/apps/hdf5/include:/scif/apps/med/include:/scif/apps/metis/include:/scif/apps/mumps_mpi/include:/scif/apps/mumps_mpi/include_mpi:/scif/apps/scotch_mpi/include:$INCLUDES
+
+# clean source directory
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /var/tmp/*
+
+COPY --from=builder /scif /scif
+COPY --from=builder /work /work
+
+# replay
+RUN ln -s /usr/bin/python3 /usr/local/bin/python && \
+    ln -s /scif/apps/tfel/bin/mfront-3.2.1 /usr/local/bin/ && \
+    ln -s /scif/apps/asrun/bin/as_run /usr/local/bin/
+
+ADD run_testcases /usr/local/bin/
+
+RUN useradd -b /work -b /scif -m -s /bin/bash aster
+
+USER aster
+WORKDIR /work/aster

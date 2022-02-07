@@ -1,0 +1,81 @@
+FROM ubuntu:18.04
+
+ENV DEBIAN_FRONTEND noninteractive
+ENV LANG=en_US.UTF-8 LC_MESSAGES=POSIX
+ENV DEVTOOLS_COMPUTER_ID=scif
+ENV LD_LIBRARY_PATH=/scif/apps/tfel/lib
+ENV PYTHONPATH=/scif/apps/asrun/lib/python3.6/site-packages:/scif/apps/tfel/lib/python3.6/site-packages
+
+# Use same filesystem organisation as for Singularity Apps
+# https://www.sylabs.io/guides/3.2/user-guide/definition_files.html#apps
+
+# Base system + prerequisites
+# Show all the dependencies of each prerequisite even if some packages are
+# repeated
+ADD bld/build_common.sh /
+RUN /build_common.sh && /build_common.sh
+
+# code_aster source + devtools
+ADD bld/get_aster.sh /
+RUN /get_aster.sh && rm -f /get_aster.sh
+
+# hdf5
+ADD bld/build_hdf5.sh /
+RUN /build_hdf5.sh && rm -f /build_hdf5.sh
+
+# med
+ADD bld/build_med.sh /
+RUN /build_med.sh && rm -f /build_med.sh
+
+# metis
+ADD bld/build_metis.sh /
+RUN /build_metis.sh && rm -f /build_metis.sh
+
+# parmetis
+ADD bld/build_parmetis.sh /
+RUN /build_parmetis.sh && rm -f /build_parmetis.sh
+
+# tfel
+ADD bld/build_tfel.sh /
+RUN /build_tfel.sh && rm -f /build_tfel.sh
+
+# homard
+ADD bld/build_homard.sh /
+RUN /build_homard.sh && rm -f /build_homard.sh
+
+# asrun (graphical packages should be removed for servers)
+ADD bld/build_asrun.sh /
+RUN mkdir -p /scif/apps/asrun/lib
+ADD asrun.external_configuration.py /scif/apps/asrun/lib/external_configuration.py
+RUN /build_asrun.sh && rm -f /build_asrun.sh
+
+# scotch sequential
+ADD bld/build_scotch_seq.sh /
+RUN /build_scotch_seq.sh && rm -f /build_scotch_seq.sh
+
+# scotch parallel
+ADD bld/build_scotch_mpi.sh /
+RUN /build_scotch_mpi.sh && rm -f /build_scotch_mpi.sh
+
+# mumps sequential
+ADD bld/build_mumps_seq.sh /
+RUN /build_mumps_seq.sh && rm -f /build_mumps_seq.sh
+
+# mumps parallel
+ADD bld/build_mumps_mpi.sh /
+RUN /build_mumps_mpi.sh && rm -f /build_mumps_mpi.sh
+
+# petsc
+ADD bld/build_petsc.sh /
+RUN /build_petsc.sh && rm -f /build_petsc.sh
+
+# clean source directory
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /var/tmp/* && \
+    rm -rf /data
+
+# create aster user
+RUN mkdir -p /work && \
+    useradd -b /work -m -s /bin/bash aster
+
+USER aster

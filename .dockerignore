@@ -1,0 +1,11 @@
+# ignore
+Dockerfile*
+env.d/*
+id.*
+images/
+Makefile
+README.md
+Singularity*
+*.sif
+workdir/
+tmp/

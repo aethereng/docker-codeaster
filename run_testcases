@@ -1,0 +1,93 @@
+#!/bin/bash
+
+_usage()
+{
+    echo "Run the testcases using a given version."
+    echo
+    echo "Usage: run_testcases [options] version"
+    echo
+    echo "Options:"
+    echo
+    echo "  --help (-h)             Print this help information and exit."
+    echo "  --np=N (-n N)           Number of processes to run (default: $(nproc))."
+    echo "  --limit=NB (-l NB)      Execute only NB tests."
+    echo "  --tests=DIR (-t DIR)    Use testcases from this directory."
+    echo "  --workdir=WRK (-w WRK)  Directory to be used for the results files."
+    echo
+    exit "${1:-1}"
+}
+
+run_main()
+{
+    local version
+    local short=0
+    local cpu=$(nproc)
+    local limit=99999
+    local tests
+    local workdir=$(mktemp -d /tmp/workdir.XXXXXX)
+
+    local option
+    OPTS=$(getopt -o htn:l:w: --long help,test,np:,limit:,tests:,workdir: -n $(basename $0) -- "$@")
+    if [ $? != 0 ] ; then
+        echo "invalid arguments." ; _usage 2
+    fi
+    eval set -- "$OPTS"
+    while true; do
+        case "$1" in
+            -h | --help ) _usage ;;
+            -n | --np ) cpu="$2" ; shift ;;
+            -l | --limit ) limit="$2" ; shift ;;
+            -t | --tests ) tests="$2" ; shift ;;
+            -w | --workdir ) workdir="$2" ; shift ;;
+            -- ) shift ; break ;;
+            * ) break ;;
+        esac
+        shift
+    done
+    if [ $# -ne 1 ] ; then
+        echo "'version' argument missing." ; _usage 2
+    fi
+    version="$1"
+
+    [ ! -d ${workdir} ] && mkdir -p ${workdir}
+    cd ${workdir}
+
+    # build testlist
+    echo "building testlist..."
+    local options="--nodebug_stderr --list --all --vers=${version}"
+    test ! -z "${tests}" && options="${options} --astest_dir=${tests}"
+    as_run ${options} --filter='"parallel" not in testlist' -o testlist
+    shuf testlist | head -"${limit}" > list_run
+
+    cat << EOF > hostfile
+[localhost]
+cpu=${cpu}
+mem=9999999
+EOF
+
+    cat << EOF > astout.export
+# parameters
+P actions astout
+P version ${version}
+P debug nodebug
+P mode interactif
+P ncpus 1
+P nbmaxnook 500
+P cpresok RESOK
+P facmtps 3
+P tpsjob 300
+
+F hostfile ${workdir}/hostfile D 0
+F list ${workdir}/list_run D 0
+R resu_test ${workdir}/resutest R 0
+EOF
+    test ! -z "${tests}" && echo "R rep_test ${tests} D 0" >> astout.export
+
+    # execute the testcases
+    as_run --nodebug_stderr astout.export
+
+    echo "results directory is ${workdir}"
+}
+
+run_main "${@}"
+exit $?
