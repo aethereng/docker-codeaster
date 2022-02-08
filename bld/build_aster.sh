@@ -28,7 +28,8 @@ cd ${BASE}/src
 grep -v /work /scif/apps/aster/share/aster/config.txt > config.tmp
 echo 'SRCTEST        | src     | -     | $ASTER_VERSION_DIR/tests' >> config.tmp
 cp config.tmp /scif/apps/aster/share/aster/config.txt
-cat /scif/apps/aster/share/aster/config.txt
+mkdir -p /scif/apps/asrun/stable && cp config.tmp /scif/apps/asrun/stable/config.txt
+# cat /scif/apps/aster/share/aster/config.txt
 # keep only some testcases
 rm /scif/apps/aster/share/aster/tests
 mkdir /scif/apps/aster/share/aster/tests
