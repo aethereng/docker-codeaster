@@ -1,10 +1,7 @@
 FROM ubuntu:18.04
 
 ENV DEBIAN_FRONTEND noninteractive
-ENV LANG=en_US.UTF-8 LC_MESSAGES=POSIX
-ENV DEVTOOLS_COMPUTER_ID=scif
-ENV LD_LIBRARY_PATH=/scif/apps/tfel/lib
-ENV PYTHONPATH=/scif/apps/asrun/lib/python3.6/site-packages:/scif/apps/tfel/lib/python3.6/site-packages
+ENV DEVTOOLS_COMPUTER_ID=aster
 
 # Use same filesystem organisation as for Singularity Apps
 # https://www.sylabs.io/guides/3.2/user-guide/definition_files.html#apps
@@ -12,70 +9,237 @@ ENV PYTHONPATH=/scif/apps/asrun/lib/python3.6/site-packages:/scif/apps/tfel/lib/
 # Base system + prerequisites
 # Show all the dependencies of each prerequisite even if some packages are
 # repeated
-ADD bld/build_common.sh /
-RUN /build_common.sh && /build_common.sh
 
-# code_aster source + devtools
-ADD bld/get_aster.sh /
-RUN /get_aster.sh && rm -f /get_aster.sh
+# USER root
+
+RUN apt-get update -y && apt-get upgrade -y --no-install-recommends --with-new-pkgs -o Dpkg::Options::="--force-confold"
+RUN apt-get install -y --no-install-recommends apt-utils
+RUN apt-get install -y --no-install-recommends \
+    # base system \
+    cmake \
+    g++ \
+    gcc \
+    gfortran \
+    locales \
+    make \
+    mercurial \
+    wget \
+    # added for... \
+    # hdf5 \
+    zlib1g-dev \
+    # med \
+    python3-dev \
+    # scotch \
+    bison \
+    flex \
+    zlib1g-dev \
+    # mumps \
+    libopenblas-dev \
+    python3-dev \
+    python3-numpy \
+    # tfel
+    libboost-numpy-dev \
+    libboost-python-dev \
+    # parmetis
+    libopenmpi-dev \
+    libblacs-mpi-dev \
+    libscalapack-openmpi-dev \
+    # asrun
+    gdb \
+    tk \
+    xterm \
+    # external tools called by aster \
+    gmsh \
+    grace
+
+ENV LANGUAGE=en_US.UTF-8
+ENV LANG=en_US.UTF-8 
+ENV LC_MESSAGES=POSIX
+ENV LC_CTYPE=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+
+RUN locale-gen en_US.UTF-8 fr_FR.UTF-8
+RUN update-locale
+
+# set environment variables
+ENV TEMP_DIRECTORY=/tmp
+ENV ASTER_DIRECTORY=/aster
+
+# dependencies
+ENV VERSION_HDF5=1.10.3
+ENV VERSION_MED=4.0.0
+ENV VERSION_METIS=5.1.0_aster4
+ENV VERSION_PARMETIS=4.0.3_aster3
+ENV VERSION_TFEL=3.2.1
+ENV VERSION_HOMARD=11.12_aster2
+ENV VERSION_SCOTCH=6.0.4_aster7
+ENV VERSION_MUMPS=5.1.2_aster6
+ENV VERSION_PETSC=3.9.4_aster
+ENV VERSION_ASRUN=2019.0-1
+
+# clone or download prerequisites
+WORKDIR ${TEMP_DIRECTORY}/hdf5
+RUN wget --no-check-certificate --quiet \
+    https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.10/hdf5-${VERSION_HDF5}/src/hdf5-${VERSION_HDF5}.tar.gz \
+    -O hdf.tar.gz && tar xf hdf.tar.gz -C . --strip-components 1 && rm hdf.tar.gz
+
+WORKDIR ${TEMP_DIRECTORY}/med
+RUN wget --no-check-certificate --quiet \
+    http://files.salome-platform.org/Salome/other/med-${VERSION_MED}.tar.gz \
+    -O med.tar.gz && tar xf med.tar.gz -C . --strip-components 1 && rm med.tar.gz
+
+WORKDIR ${TEMP_DIRECTORY}/tfel
+RUN wget --no-check-certificate --quiet \
+    https://github.com/thelfer/tfel/archive/TFEL-${VERSION_TFEL}.tar.gz \
+    -O tfel.tar.gz && tar xf tfel.tar.gz -C . --strip-components 1 &&rm tfel.tar.gz
+
+WORKDIR ${TEMP_DIRECTORY}
+
+RUN hg clone -r ${VERSION_METIS} http://hg.code.sf.net/p/prereq/metis metis
+RUN hg clone -r ${VERSION_PARMETIS} http://hg.code.sf.net/p/prereq/parmetis parmetis
+RUN hg clone -r ${VERSION_HOMARD} http://hg.code.sf.net/p/prereq/homard homard
+RUN hg clone -r ${VERSION_SCOTCH} http://hg.code.sf.net/p/prereq/scotch scotch_seq
+RUN cp -r scotch_seq scotch_mpi
+RUN hg clone -r ${VERSION_MUMPS} http://hg.code.sf.net/p/prereq/mumps mumps_seq
+RUN cp -r mumps_seq mumps_mpi
+RUN hg clone -r ${VERSION_PETSC} http://hg.code.sf.net/p/prereq/petsc petsc
+RUN hg clone -r ${VERSION_ASRUN} http://hg.code.sf.net/p/prereq/frontend frontend
 
 # hdf5
-ADD bld/build_hdf5.sh /
-RUN /build_hdf5.sh && rm -f /build_hdf5.sh
+WORKDIR ${TEMP_DIRECTORY}/hdf5
+RUN ./configure --prefix=${ASTER_DIRECTORY}/hdf5
+RUN make -j 4 install 
 
 # med
-ADD bld/build_med.sh /
-RUN /build_med.sh && rm -f /build_med.sh
-
-# metis
-ADD bld/build_metis.sh /
-RUN /build_metis.sh && rm -f /build_metis.sh
-
-# parmetis
-ADD bld/build_parmetis.sh /
-RUN /build_parmetis.sh && rm -f /build_parmetis.sh
+WORKDIR ${TEMP_DIRECTORY}/med
+RUN F77=gfortran CXXFLAGS='-std=gnu++98' PYTHON=/usr/bin/python3 \
+    ./configure --disable-mesgerr --with-hdf5=${ASTER_DIRECTORY}/hdf5 \
+        --prefix=${ASTER_DIRECTORY}/med
+RUN make -j 4 install
+RUN rm -rf ${ASTER_DIRECTORY}/med/share/doc/med
 
 # tfel
-ADD bld/build_tfel.sh /
-RUN /build_tfel.sh && rm -f /build_tfel.sh
+WORKDIR ${TEMP_DIRECTORY}/tfel/build
+RUN cmake .. \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DTFEL_SVN_REVISION=${VERSION_TFEL} -DTFEL_APPEND_VERSION=${VERSION_TFEL} \
+    -DCMAKE_Fortran_COMPILER=/usr/bin/gfortran \
+    -Dlocal-castem-header=ON -Denable-fortran=OFF \
+    -Denable-broken-boost-python-module-visibility-handling=ON \
+    -Denable-python-bindings=ON \
+    -Denable-cyrano=ON -Denable-aster=ON \
+    -Ddisable-reference-doc=ON -Ddisable-website=ON \
+    -Denable-portable-build=ON \
+    -DPython_ADDITIONAL_VERSIONS=3.6 -Denable-python=ON \
+    -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3 \
+    -DPYTHON_LIBRARY:FILEPATH=/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu/libpython3.6.so \
+    -DPYTHON_INCLUDE_DIR:PATH=/usr/include/python3.6 \
+    -DCMAKE_INSTALL_PREFIX=${ASTER_DIRECTORY}/tfel
+RUN make -j 4 install
+RUN ln -s ${ASTER_DIRECTORY}/tfel/bin/mfront-${VERSION_TFEL} /usr/local/bin/
+
+# metis
+WORKDIR ${TEMP_DIRECTORY}/metis
+RUN make config prefix=${ASTER_DIRECTORY}/metis
+RUN make -j 4 install
+
+# parmetis
+WORKDIR ${TEMP_DIRECTORY}/parmetis
+RUN make config CFLAGS="-fPIC -DINTSIZE64" prefix=${ASTER_DIRECTORY}/parmetis
+RUN make -j 4 install
 
 # homard
-ADD bld/build_homard.sh /
-RUN /build_homard.sh && rm -f /build_homard.sh
-
-# asrun (graphical packages should be removed for servers)
-ADD bld/build_asrun.sh /
-RUN mkdir -p /scif/apps/asrun/lib
-ADD asrun.external_configuration.py /scif/apps/asrun/lib/external_configuration.py
-RUN /build_asrun.sh && rm -f /build_asrun.sh
+WORKDIR ${TEMP_DIRECTORY}/homard
+RUN python setup_homard.py --prefix=${ASTER_DIRECTORY}/homard
+RUN ln -s ${ASTER_DIRECTORY}/homard/homard /usr/local/bin/
 
 # scotch sequential
-ADD bld/build_scotch_seq.sh /
-RUN /build_scotch_seq.sh && rm -f /build_scotch_seq.sh
+WORKDIR ${TEMP_DIRECTORY}/scotch_seq/src
+RUN sed -i -e 's/CFLAGS\s*=/CFLAGS = -Wl,--no-as-needed/g' \
+    -e 's/CCD\s*=.*$/CCD = cc/g' Makefile.inc
+RUN make scotch esmumps
+RUN mkdir -p ${ASTER_DIRECTORY}/scotch_seq && make install prefix=${ASTER_DIRECTORY}/scotch_seq
 
 # scotch parallel
-ADD bld/build_scotch_mpi.sh /
-RUN /build_scotch_mpi.sh && rm -f /build_scotch_mpi.sh
+WORKDIR ${TEMP_DIRECTORY}/scotch_mpi/src
+RUN sed -i -e 's/CFLAGS\s*=/CFLAGS = -Wl,--no-as-needed/g' \
+    -e 's/CCD\s*=.*$/CCD = mpicc/g' Makefile.inc
+RUN make scotch esmumps ptscotch ptesmumps
+RUN mkdir -p ${ASTER_DIRECTORY}/scotch_mpi && make install prefix=${ASTER_DIRECTORY}/scotch_mpi
 
 # mumps sequential
-ADD bld/build_mumps_seq.sh /
-RUN /build_mumps_seq.sh && rm -f /build_mumps_seq.sh
+WORKDIR ${TEMP_DIRECTORY}/mumps_seq
+RUN LIBPATH="${ASTER_DIRECTORY}/scotch_seq/lib ${ASTER_DIRECTORY}/metis/lib ${ASTER_DIRECTORY}/parmetis/lib" \
+    INCLUDES="${ASTER_DIRECTORY}/scotch_seq/include ${ASTER_DIRECTORY}/metis/include ${ASTER_DIRECTORY}/parmetis/include" \
+    python3 ./waf configure --enable-openmp --enable-metis --enable-scotch \
+        --install-tests --prefix=${ASTER_DIRECTORY}/mumps_seq
+RUN python3 ./waf build
+RUN python3 ./waf install
 
 # mumps parallel
-ADD bld/build_mumps_mpi.sh /
-RUN /build_mumps_mpi.sh && rm -f /build_mumps_mpi.sh
+WORKDIR ${TEMP_DIRECTORY}/mumps_mpi
+RUN LIBPATH="${ASTER_DIRECTORY}/scotch_mpi/lib ${ASTER_DIRECTORY}/metis/lib ${ASTER_DIRECTORY}/parmetis/lib" \
+    INCLUDES="${ASTER_DIRECTORY}/scotch_mpi/include ${ASTER_DIRECTORY}/metis/include ${ASTER_DIRECTORY}/parmetis/include" \
+    python3 ./waf configure --enable-mpi --enable-openmp --enable-metis --enable-parmetis --enable-scotch \
+        --install-tests --prefix=${ASTER_DIRECTORY}/mumps_mpi
+RUN python3 ./waf build
+RUN python3 ./waf install
 
-# petsc
-ADD bld/build_petsc.sh /
-RUN /build_petsc.sh && rm -f /build_petsc.sh
+# petsc 3.15.3_aster2
+WORKDIR ${TEMP_DIRECTORY}/petsc/petsc-src
+RUN ./configure \
+    --COPTFLAGS="-O2" \
+    --CXXOPTFLAGS="-O2" \
+    --FOPTFLAGS="-O2" \
+    --with-debugging=0 \
+    --with-mpi=1 \
+    --with-ssl=0 \
+    --with-x=0 \
+    --with-openmp=0 \
+    --with-shared-libraries=1 \
+    --with-mumps-lib="-L${ASTER_DIRECTORY}/mumps_mpi/lib -lzmumps -ldmumps -lmumps_common -lpord -L${ASTER_DIRECTORY}/scotch_mpi/lib -lesmumps -lptscotch -lptscotcherr -lptscotcherrexit -lscotch -lscotcherr -lscotcherrexit -L${ASTER_DIRECTORY}/parmetis/lib -lparmetis -L${ASTER_DIRECTORY}/metis/lib -lmetis" \
+    --with-mumps-include=${ASTER_DIRECTORY}/mumps_mpi/include \
+    --with-blas-lapack-lib="-lopenblas -llapack -lblacsCinit-openmpi -lblacsF77init-openmpi -lblacs-openmpi" \
+    --with-scalapack-lib="-lscalapack-openmpi" \
+    --download-ml=${TEMP_DIRECTORY}/petsc/3rd/petsc-pkg-ml-e5040d11aa07.tar.gz \
+    --download-hypre=${TEMP_DIRECTORY}/petsc/3rd/hypre-2.14.0.tar.gz \
+    --download-superlu=${TEMP_DIRECTORY}/petsc/3rd/superlu-a0819410c9eb779f9b296cdd95fbdfd96986ae10.tar.gz \
+    --PETSC_ARCH=arch-linux2-codeaster \
+    --LIBS="-lgomp" \
+    --prefix=${ASTER_DIRECTORY}/petsc
+RUN make -j 4 all
+RUN make -j 4 install
+RUN make PETSC_DIR=/aster/petsc PETSC_ARCH="" test
 
-# clean source directory
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /var/tmp/* && \
-    rm -rf /data
+# asrun
+WORKDIR ${TEMP_DIRECTORY}/frontend
+COPY asrun.external_configuration.py external_configuration.py
+RUN python3 setup.py install --prefix=${ASTER_DIRECTORY}/asrun
+RUN sed -i "s/mpi_get_procid_cmd : echo \$PMI_RANK/mpi_get_procid_cmd : echo \$OMPI_COMM_WORLD_RANK/" ${ASTER_DIRECTORY}/asrun/etc/codeaster/asrun
+RUN printf "\nvers : stable:${ASTER_DIRECTORY}/aster/share/aster\n" >> ${ASTER_DIRECTORY}/asrun/etc/codeaster/aster
+RUN ln -s ${ASTER_DIRECTORY}/asrun/bin/as_run /usr/local/bin/
 
-# create aster user
-RUN mkdir -p /work && \
-    useradd -b /work -m -s /bin/bash aster
+RUN ls -la ${TEMP_DIRECTORY}
+RUN ls -la ${ASTER_DIRECTORY}
 
-USER aster
+# # code_aster source + devtools
+# ADD bld/get_aster.sh /
+# RUN /get_aster.sh && rm -f /get_aster.sh
+
+# # asrun (graphical packages should be removed for servers)
+# ADD bld/build_asrun.sh /
+# RUN mkdir -p ${ASTER_DIRECTORY}/asrun/lib
+# ADD asrun.external_configuration.py ${ASTER_DIRECTORY}/asrun/lib/external_configuration.py
+# RUN /build_asrun.sh && rm -f /build_asrun.sh
+
+
+# # clean source directory
+# RUN apt-get clean && \
+#     rm -rf /var/lib/apt/lists/* /var/tmp/* && \
+#     rm -rf /data
+
+# # create aster user
+# RUN mkdir -p ${TEMP_DIRECTORY} && \
+#     useradd -b ${TEMP_DIRECTORY} -m -s /bin/bash aster
+
+# USER aster

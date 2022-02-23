@@ -1,5 +1,5 @@
 parameters = {
-    "ASTER_VERSION": "unstable",
+    "ASTER_VERSION": "stable",
     "IFDEF": "LINUX64",
     "MPIRUN": "mpirun -np %(mpi_nbcpu)s --hostfile %(mpi_hostfile)s %(program)s",
     "DEBUGGER_COMMAND": "/usr/bin/gdb --command=@D @E",

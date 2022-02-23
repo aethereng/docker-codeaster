@@ -6,12 +6,14 @@ export LANG=en_US.UTF-8 LC_MESSAGES=POSIX
 apt-get update -y
 apt-get install -y net-tools
 
-bash /salome_meca.run -t /scif/apps/salome_meca -d -m -l English
+bash /salome_meca.run -t /scif/apps/salome_meca -a /scif/apps/salome_meca/appli_V2020 -d -m -l English
 rm -f /salome_meca.run
+
+ls -la /scif/apps/salome_meca/appli_V2020/tools
 
 # use development version as 'stable'
 sed -i 's#vers : stable:.*$#vers : stable:/scif/apps/aster/share/aster#g' \
-    /scif/apps/salome_meca/V2020_univ/tools/Code_aster_frontend-20190/etc/codeaster/aster
+    /scif/apps/salome_meca/appli_V2020/tools/Code_aster_frontend-20190/etc/codeaster/aster
 
 # clean directories
 apt-get clean

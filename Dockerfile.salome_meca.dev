@@ -1,13 +1,11 @@
 FROM aethereng/codeaster-seq:latest
 
 # salome_meca 2019.0.1 universal + code_aster 15.0.16 sequential.
+ENV LANG=en_US.UTF-8 LC_MESSAGES=POSIX
+# RUN apt-get update && apt-get install -y net-tools 
 
-ADD salome_meca-2020.0.1-1-universal.run /salome_meca.run
-ADD bld/build_salome_meca.sh /
-
-ENV PATH=$PATH:/scif/apps/salome_meca/appli_V2020_univ
-
-USER root
-RUN /build_salome_meca.sh && rm -f /build_salome_meca.sh
-
-USER aster
+ADD tmp/salome_meca-2020.0.1-1-universal.run /salome_meca.run
+USER root 
+RUN bash /salome_meca.run -t /scif/apps/salome_meca -a /scif/apps/salome_meca/appli_V2020 -d -m -l English
+RUN rm -f /salome_meca.run
+RUN ls -la /scif/apps/salome_meca
