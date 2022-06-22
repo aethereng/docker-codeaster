@@ -2,7 +2,7 @@ FROM aethereng/codeaster-common:latest as builder
 
 USER root
 
-ARG VERSION_ASTER=15.5.2
+ARG VERSION_ASTER
 ENV DEVTOOLS_COMPUTER_ID=aster
 
 # set environment variables
