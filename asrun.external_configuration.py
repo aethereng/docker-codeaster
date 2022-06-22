@@ -1,7 +1,7 @@
 parameters = {
     "ASTER_VERSION": "stable",
     "IFDEF": "LINUX64",
-    "MPIRUN": "mpirun -np %(mpi_nbcpu)s --hostfile %(mpi_hostfile)s %(program)s",
+    "MPIRUN": "mpirun -np %(mpi_nbcpu)s --hostfile %(mpi_hostfile)s %(program)s --allow-run-as-root",
     "DEBUGGER_COMMAND": "/usr/bin/gdb --command=@D @E",
     "DEBUGGER_COMMAND_POST": "/usr/bin/gdb -batch --command=@D @E @C",
     "NODE": "localhost",

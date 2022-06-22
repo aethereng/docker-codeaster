@@ -1,35 +1,105 @@
 FROM aethereng/codeaster-common:latest as builder
 
-# use code aster vversion
-ENV ASTER_VERSION=15.5.1
+USER root
+
+ARG VERSION_ASTER=15.5.2
+ENV DEVTOOLS_COMPUTER_ID=aster
+
 # set environment variables
 ENV TEMP_DIRECTORY=/tmp
 ENV ASTER_DIRECTORY=/aster
 
+ENV PREREQ_PATH=$ASTER_DIRECTORY
+
+ENV LINKFLAGS="-Wl,--no-as-needed"
+
+# prerequisites paths
+ENV LIBPATH_HDF5="${PREREQ_PATH}/hdf5/lib"
+ENV INCLUDES_HDF5="${PREREQ_PATH}/hdf5/include"
+ENV LD_LIBRARY_PATH="${LIBPATH_HDF5}:${LD_LIBRARY_PATH}"
+
+ENV LIBPATH_MED="${PREREQ_PATH}/med/lib"
+ENV INCLUDES_MED="${PREREQ_PATH}/med/include"
+ENV PYPATH_MED="${PREREQ_PATH}/med/lib/python3.6/site-packages"
+ENV PATH="${PREREQ_PATH}/med/bin:${PATH}"
+ENV LD_LIBRARY_PATH="${LIBPATH_MED}:${LD_LIBRARY_PATH}"
+ENV PYTHONPATH="${PYPATH_MED}:${PYTHONPATH}"
+
+ENV LIBPATH_METIS="${PREREQ_PATH}/metis/lib"
+ENV INCLUDES_METIS="${PREREQ_PATH}/metis/include"
+ENV LD_LIBRARY_PATH="${LIBPATH_METIS}:${LD_LIBRARY_PATH}"
+
+ENV LIBPATH_TFEL="${PREREQ_PATH}/tfel/lib"
+ENV INCLUDES_TFEL="${PREREQ_PATH}/tfel/include"
+ENV LD_LIBRARY_PATH="${LIBPATH_TFEL}:${LD_LIBRARY_PATH}"
+ENV PATH="${PREREQ_PATH}/tfel/bin/mfront-3.4.0:${PATH}"
+
+ENV PATH="${PREREQ_PATH}/homard/bin:${PATH}"
+
+ENV LIBPATH_SCOTCH="${PREREQ_PATH}/scotch_mpi/lib"
+ENV INCLUDES_SCOTCH="${PREREQ_PATH}/scotch_mpi/include"
+ENV LD_LIBRARY_PATH="${LIBPATH_SCOTCH}:${LD_LIBRARY_PATH}"
+
+ENV LIBPATH_MUMPS="${PREREQ_PATH}/mumps_mpi/lib"
+ENV INCLUDES_MUMPS="${PREREQ_PATH}/mumps_mpi/include ${PREREQ_PATH}/mumps_mpi/include_seq"
+ENV LD_LIBRARY_PATH="${LIBPATH_MUMPS}:${LD_LIBRARY_PATH}"
+
+ENV PATH="${PREREQ_PATH}/miss3d:${PATH}"
+
+ENV PYPATH_ASRUN="${PREREQ_PATH}/asrun/lib/python3.6/site-packages"
+ENV PATH="${PREREQ_PATH}/asrun/bin:${PATH}"
+ENV PYTHONPATH="${PYPATH_ASRUN}:${PYTHONPATH}"
+
+ENV LIBPATH_PARMETIS="${PREREQ_PATH}/parmetis/lib"
+ENV INCLUDES_PARMETIS="${PREREQ_PATH}/parmetis/include"
+ENV LD_LIBRARY_PATH="${LIBPATH_PARMETIS}:${LD_LIBRARY_PATH}"
+
+ENV LIBPATH_PETSC="${PREREQ_PATH}/petsc/lib"
+ENV INCLUDES_PETSC="${PREREQ_PATH}/petsc/include"
+ENV PYPATH_PETSC="${PREREQ_PATH}/petsc/lib"
+ENV LD_LIBRARY_PATH="${LIBPATH_PETSC}:${LD_LIBRARY_PATH}"
+ENV PYTHONPATH="${PYPATH_PETSC}:${PYTHONPATH}"
+
+ENV LINKFLAGS="${LINKFLAGS} -Wl,-rpath=${LD_LIBRARY_PATH}"
+
 # include libraries
-ENV LD_LIBRARY_PATH=${ASTER_DIRECTORY}/hdf5/lib:${ASTER_DIRECTORY}/med/lib:${ASTER_DIRECTORY}/metis/lib:${ASTER_DIRECTORY}/mumps_mpi/lib:${ASTER_DIRECTORY}/scotch_mpi/lib:${ASTER_DIRECTORY}/tfel/lib:$LD_LIBRARY_PATH
-ENV LIBPATH=${ASTER_DIRECTORY}/hdf5/lib:${ASTER_DIRECTORY}/med/lib:${ASTER_DIRECTORY}/metis/lib:${ASTER_DIRECTORY}/mumps_mpi/lib:${ASTER_DIRECTORY}/scotch_mpi/lib:$LIBPATH
-ENV INCLUDES=${ASTER_DIRECTORY}/hdf5/include:${ASTER_DIRECTORY}/med/include:${ASTER_DIRECTORY}/metis/include:${ASTER_DIRECTORY}/mumps_mpi/include:${ASTER_DIRECTORY}/mumps_mpi/include_mpi:${ASTER_DIRECTORY}/scotch_mpi/include:$INCLUDES
-ENV PYTHONPATH=$PYTHONPATH:${ASTER_DIRECTORY}/asrun/lib/python3.6/site-packages:${ASTER_DIRECTORY}/tfel/lib/python3.6/site-packages
+ENV PYTHONPATH=${ASTER_DIRECTORY}/tfel/lib/python3.6/site-packages:$PYTHONPATH
+
+ENV PATH=$ASTER_DIRECTORY/devtools/bin:$PATH
+ENV LD_LIBRARY_PATH=$ASTER_DIRECTORY/devtools/lib:$LD_LIBRARY_PATH
+
+ENV ENABLE_MPI=1
 
 # create symlink to lib64
 RUN ln -s /usr/lib/x86_64-linux-gnu/ /usr/lib64
 
-# update codeaster to $VERSION
 WORKDIR ${TEMP_DIRECTORY}
-RUN hg clone -r ${ASTER_VERSION} http://hg.code.sf.net/p/codeaster/src aster
+# clone aster
+ENV VERSION_ASTER=15.5.2
+RUN git clone --branch ${VERSION_ASTER} https://gitlab.com/codeaster/src.git aster
+
+# clone devtools
+ENV VERSION_DEVTOOLS=default
+RUN hg clone -r ${VERSION_DEVTOOLS} http://hg.code.sf.net/p/codeaster/devtools devtools
+
 WORKDIR ${TEMP_DIRECTORY}/aster
-# add waf config files to src 
-RUN mkdir -p ${TEMP_DIRECTORY}/aster/wafcfg 
-ADD aster.wafcfg_scif_boost.py ${TEMP_DIRECTORY}/aster/wafcfg/scif_boost.py
-ADD aster.wafcfg_scif_std.py ${TEMP_DIRECTORY}/aster/wafcfg/scif_std.py
-ADD aster.wafcfg_scif_mpi.py ${TEMP_DIRECTORY}/aster/wafcfg/scif_mpi.py
-# configure && build
-RUN ./waf_mpi --help
-RUN ./waf_mpi configure --use-config-dir=. --prefix=${ASTER_DIRECTORY}/aster --install-tests --with-data=${TEMP_DIRECTORY}/aster/data -v && \
-    ./waf_mpi build
+
+RUN sed -i 's/self.check_mpi_get_rank()/#self.check_mpi_get_rank()/g' data/wscript
+
+ENV CONFIG_PARAMETERS_addmem=4096
+ENV CONFIG_PARAMETERS_mpiexec="mpirun -np %(mpi_nbcpu)s --hostfile %(mpi_hostfile)s %(program)s --allow-run-as-root"
+ENV CONFIG_PARAMETERS_mpi_get_rank="echo ${OMPI_COMM_WORLD_RANK}"
+ENV CATALO_CMD="DUMMY="
 
 # install
+RUN ./waf_mpi distclean
+RUN ./waf_mpi configure \
+    --use-config=scif_mpi \
+    --use-config-dir=${ASTER_DIRECTORY}/aster/lib \
+    --prefix=${ASTER_DIRECTORY}/aster \
+    --install-tests \
+    --with-data=${TEMP_DIRECTORY}/aster/data \
+    --without-hg
 RUN ./waf_mpi install
 
 # move testcases to minimize binary image size
@@ -39,8 +109,9 @@ RUN mv ${ASTER_DIRECTORY}/aster/share/aster/tests ${TEMP_DIRECTORY}/tests && \
         mv ${TEMP_DIRECTORY}/tests/${name}* ${ASTER_DIRECTORY}/aster/share/aster/tests/; \
     done
 
+RUN rm -rf ${TEMP_DIRECTORY}/*
+
 # binary installation
-# # TODO: "-dev" could probably be removed
 FROM ubuntu:18.04
 
 ENV DEBIAN_FRONTEND noninteractive
@@ -49,45 +120,32 @@ ENV DEVTOOLS_COMPUTER_ID=aster
 # Base system + prerequisites
 # Show all the dependencies of each prerequisite even if some packages are
 # repeated
-RUN apt-get update -y && apt-get upgrade -y --no-install-recommends --with-new-pkgs -o Dpkg::Options::="--force-confold"
-RUN apt-get install -y --no-install-recommends apt-utils
-RUN apt-get install -y --no-install-recommends \
-    # base system \
-    cmake \
+RUN apt-get update --fix-missing -y --no-install-recommends -o Dpkg::Options::="--force-confold"
+RUN apt-get install -y \
     g++ \
     gcc \
     gfortran \
     locales \
-    make \
-    mercurial \
-    wget \
-    # added for... \
-    # hdf5 \
     zlib1g-dev \
-    # med \
-    python3-dev \
-    # scotch \
     bison \
     flex \
     zlib1g-dev \
-    # mumps \
     libopenblas-dev \
     python3-dev \
     python3-numpy \
-    # tfel
     libboost-numpy-dev \
     libboost-python-dev \
-    # parmetis
     libopenmpi-dev \
     libblacs-mpi-dev \
     libscalapack-openmpi-dev \
-    # asrun
     gdb \
     tk \
     xterm \
-    # external tools called by aster \
     gmsh \
     grace
+
+RUN apt-get install -y \
+    ssh
 
 ENV LANGUAGE=en_US.UTF-8
 ENV LANG=en_US.UTF-8 
@@ -100,22 +158,80 @@ RUN update-locale
 
 ENV ASTER_DIRECTORY=/aster
 
-ENV LD_LIBRARY_PATH=${ASTER_DIRECTORY}/hdf5/lib:${ASTER_DIRECTORY}/med/lib:${ASTER_DIRECTORY}/metis/lib:${ASTER_DIRECTORY}/mumps_mpi/lib:${ASTER_DIRECTORY}/scotch_mpi/lib:${ASTER_DIRECTORY}/tfel/lib:$LD_LIBRARY_PATH
-ENV LIBPATH=${ASTER_DIRECTORY}/hdf5/lib:${ASTER_DIRECTORY}/med/lib:${ASTER_DIRECTORY}/metis/lib:${ASTER_DIRECTORY}/mumps_mpi/lib:${ASTER_DIRECTORY}/scotch_mpi/lib:$LIBPATH
-ENV INCLUDES=${ASTER_DIRECTORY}/hdf5/include:${ASTER_DIRECTORY}/med/include:${ASTER_DIRECTORY}/metis/include:${ASTER_DIRECTORY}/mumps_mpi/include:${ASTER_DIRECTORY}/mumps_mpi/include_mpi:${ASTER_DIRECTORY}/scotch_mpi/include:$INCLUDES
-ENV PYTHONPATH=$PYTHONPATH:${ASTER_DIRECTORY}/asrun/lib/python3.6/site-packages:${ASTER_DIRECTORY}/tfel/lib/python3.6/site-packages
+ENV PREREQ_PATH=$ASTER_DIRECTORY
+ENV CONFIG_PARAMETERS_addmem=4800
+
+ENV LINKFLAGS="-Wl,--no-as-needed"
+
+# prerequisites paths
+ENV LIBPATH_HDF5="${PREREQ_PATH}/hdf5/lib"
+ENV INCLUDES_HDF5="${PREREQ_PATH}/hdf5/include"
+ENV LD_LIBRARY_PATH="${LIBPATH_HDF5}:${LD_LIBRARY_PATH}"
+
+ENV LIBPATH_MED="${PREREQ_PATH}/med/lib"
+ENV INCLUDES_MED="${PREREQ_PATH}/med/include"
+ENV PYPATH_MED="${PREREQ_PATH}/med/lib/python3.6/site-packages"
+ENV PATH="${PREREQ_PATH}/med/bin:${PATH}"
+ENV LD_LIBRARY_PATH="${LIBPATH_MED}:${LD_LIBRARY_PATH}"
+ENV PYTHONPATH="${PYPATH_MED}:${PYTHONPATH}"
+
+ENV LIBPATH_METIS="${PREREQ_PATH}/metis/lib"
+ENV INCLUDES_METIS="${PREREQ_PATH}/metis/include"
+ENV LD_LIBRARY_PATH="${LIBPATH_METIS}:${LD_LIBRARY_PATH}"
+
+ENV LIBPATH_TFEL="${PREREQ_PATH}/tfel/lib"
+ENV INCLUDES_TFEL="${PREREQ_PATH}/tfel/include"
+ENV LD_LIBRARY_PATH="${LIBPATH_TFEL}:${LD_LIBRARY_PATH}"
+ENV PATH="${PREREQ_PATH}/tfel/bin/mfront-3.4.0:${PATH}"
+
+ENV PATH="${PREREQ_PATH}/homard/bin:${PATH}"
+
+ENV LIBPATH_SCOTCH="${PREREQ_PATH}/scotch_mpi/lib"
+ENV INCLUDES_SCOTCH="${PREREQ_PATH}/scotch_mpi/include"
+ENV LD_LIBRARY_PATH="${LIBPATH_SCOTCH}:${LD_LIBRARY_PATH}"
+
+ENV LIBPATH_MUMPS="${PREREQ_PATH}/mumps_mpi/lib"
+ENV INCLUDES_MUMPS="${PREREQ_PATH}/mumps_mpi/include ${PREREQ_PATH}/mumps_mpi/include_seq"
+ENV LD_LIBRARY_PATH="${LIBPATH_MUMPS}:${LD_LIBRARY_PATH}"
+
+ENV PATH="${PREREQ_PATH}/miss3d:${PATH}"
+
+ENV PYPATH_ASRUN="${PREREQ_PATH}/asrun/lib/python3.6/site-packages"
+ENV PATH="${PREREQ_PATH}/asrun/bin:${PATH}"
+ENV PYTHONPATH="${PYPATH_ASRUN}:${PYTHONPATH}"
+
+ENV LIBPATH_PARMETIS="${PREREQ_PATH}/parmetis/lib"
+ENV INCLUDES_PARMETIS="${PREREQ_PATH}/parmetis/include"
+ENV LD_LIBRARY_PATH="${LIBPATH_PARMETIS}:${LD_LIBRARY_PATH}"
+
+ENV LIBPATH_PETSC="${PREREQ_PATH}/petsc/lib"
+ENV INCLUDES_PETSC="${PREREQ_PATH}/petsc/include"
+ENV PYPATH_PETSC="${PREREQ_PATH}/petsc/lib"
+ENV LD_LIBRARY_PATH="${LIBPATH_PETSC}:${LD_LIBRARY_PATH}"
+ENV PYTHONPATH="${PYPATH_PETSC}:${PYTHONPATH}"
+
+ENV LINKFLAGS="${LINKFLAGS} -Wl,-rpath=${LD_LIBRARY_PATH}"
+
+# include libraries
+ENV PYTHONPATH=${ASTER_DIRECTORY}/tfel/lib/python3.6/site-packages:$PYTHONPATH
+
+ENV PATH=$ASTER_DIRECTORY/devtools/bin:$PATH
+ENV LD_LIBRARY_PATH=$ASTER_DIRECTORY/devtools/lib:$LD_LIBRARY_PATH
+
+RUN mkdir /work && \
+    useradd -b /work -m -s /bin/bash aster
 
 # clean source directory
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/*
 
 COPY --from=builder /aster /aster
+COPY run_testcases /usr/local/bin/run_testcases
 
 # replay
 RUN ln -s /usr/bin/python3 /usr/local/bin/python && \
-    ln -s /aster/tfel/bin/mfront-3.2.1 /usr/local/bin/ && \
+    ln -s /aster/tfel/bin/mfront-3.4.0 /usr/local/bin/ && \
     ln -s /aster/asrun/bin/as_run /usr/local/bin/
 
-ADD run_testcases /usr/local/bin/
-
-WORKDIR /aster
+USER aster
+WORKDIR /work/aster
