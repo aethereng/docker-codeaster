@@ -24,7 +24,7 @@ aethereng/codeaster-seq      15.5.2      1.91GB
 
 ## Background
 
-As of version 15.2 and on [code_aster](https://code-aster.org) has become more pythonic than ever, with a massive refactoring of the source code and the migration of some functionality from FORTRAN to C++ code. Furthermore, the compilation and production process is based on [singularity](https://www.sylabs.io/docs/) container technology.
+As of version 15.2 and on, [code_aster](https://code-aster.org) has become more pythonic than ever, with a massive refactoring of the source code and the migration of some functionality from FORTRAN to C++ code. Furthermore, the compilation and production process is based on [singularity](https://www.sylabs.io/docs/) container technology.
 
 As a result, existing recipes to compile `code_aster` with [docker](https://www.docker.com/) like the excellent [code_aster_on_docker](https://github.com/tianyikillua/code_aster_on_docker) by [@tianyikillua](https://github.com/tianyikillua) are not applicable any more.
 
@@ -104,15 +104,15 @@ docker run --name astercp aethereng/codeaster-seq:latest
 
 # copy files
 mkdir workdir
-docker cp astercp:/scif/apps/aster/share/aster/tests/sslv155a.comm workdir/
-docker cp astercp:/scif/apps/aster/share/aster/tests/sslv155a.mmed workdir/
+docker cp astercp:/aster/aster/share/aster/tests/sslv155a.comm workdir/
+docker cp astercp:/aster/aster/share/aster/tests/sslv155a.mmed workdir/
 
 # clean the temporary container
 docker rm astercp
 
 # create the export file
 docker run --rm  aethereng/codeaster-seq:latest as_run --get_export sslv155a --nodebug_stderr | \
-    sed -e 's#/scif/apps/aster/share/aster/tests#.#g' \
+    sed -e 's#/aster/aster/share/aster/tests#.#g' \
     > workdir/export
 ```
 
@@ -122,8 +122,8 @@ by name (`P version stable`).
 Now, run a code_aster container using local files:
 
 ``` bash
-docker run --rm --volume $(pwd)/workdir:/aster aethereng/codeaster-seq:latest \
-    as_run --nodebug_stderr /aster/export
+docker run --rm --volume $(pwd)/workdir:/home/aster aethereng/codeaster-seq:latest \
+    as_run --nodebug_stderr /home/aster/export
 ```
 
 ### Validation
@@ -160,7 +160,7 @@ mv code_aster-codeaster-src-*/astest . && rm -rf code_aster-codeaster-src-*
 
 # mount 'astest' and run testcases in the container
 docker run -t --volume $(pwd)/astest:/home/aster/tests aethereng/codeaster-seq:latest \
-    run_testcases --tests=/home/aster/tests unstable
+    run_testcases --tests=/home/aster/tests stable
 ```
 
 
