@@ -168,4 +168,4 @@ docker run -t --volume $(pwd)/astest:/home/aster/tests aethereng/codeaster-seq:l
 
 ## Prerequisites
 
-See [presrequisites.md](./prerequisites.md) for a list of installed components during image building
+See [prerequisites.md](./prerequisites.md) for a list of installed components during image building
