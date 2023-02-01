@@ -1,6 +1,8 @@
 # Docker code_aster container
 
-The repository contains recipes to build a sequential and a parallel
+This repository contains recipes to build [docker](https://www.docker.com/) images of [code_aster](https://code-aster.org), a FE solver developed by [EDF](https://www.edf.fr/).
+
+The recipes allow building a sequential and a parallel
 version for the stable branch (`default`) which refers to the `latest`
 tag on docker images.
 The code_aster version is named `stable`.
@@ -24,9 +26,9 @@ aethereng/codeaster-seq      15.5.2      1.91GB
 
 ## Background
 
-As of version 15.2 and on, [code_aster](https://code-aster.org) has become more pythonic than ever, with a massive refactoring of the source code and the migration of some functionality from FORTRAN to C++ code. Furthermore, the compilation and production process is based on [singularity](https://www.sylabs.io/docs/) container technology.
+As of version 15.2 and on, `code_aster` has become more pythonic than ever, with a massive refactoring of the source code and the migration of some functionality from FORTRAN to C++ code. Furthermore, the compilation and production process is based on [singularity](https://www.sylabs.io/docs/) container technology.
 
-As a result, existing recipes to compile `code_aster` with [docker](https://www.docker.com/) like the excellent [code_aster_on_docker](https://github.com/tianyikillua/code_aster_on_docker) by [@tianyikillua](https://github.com/tianyikillua) are not applicable any more.
+As a result, existing recipes to compile `code_aster` with `docker` like the excellent [code_aster_on_docker](https://github.com/tianyikillua/code_aster_on_docker) by [@tianyikillua](https://github.com/tianyikillua) are not applicable any more.
 
 Thus, the objective of this work is to fill-in-the-gap and create `docker` recipes for the new versions (post 15.2) of `code_aster`.
 
