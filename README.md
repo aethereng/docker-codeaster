@@ -11,7 +11,7 @@ Thanks to the awesome work by [@andefined](https://github.com/andefined) the siz
 ```
 REPOSITORY                   TAG         SIZE
 aethereng/codeaster-mpi      latest      1.97GB
-aethereng/codeaster-seq      15.5.2      1.91GB
+aethereng/codeaster-seq      latest      1.91GB
 ```
 
 
