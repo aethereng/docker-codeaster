@@ -294,6 +294,7 @@ RUN ln -s ${ASTER_DIRECTORY}/asrun/bin/as_run /usr/local/bin/
 RUN rm -rf ${TEMP_DIRECTORY}/*
 
 RUN mkdir -p ${ASTER_DIRECTORY}/aster/lib
+ADD dummy.env ${ASTER_DIRECTORY}/aster/lib
 ADD aster.wafcfg_scif_std.py ${ASTER_DIRECTORY}/aster/lib/scif_std.py
 ADD aster.wafcfg_scif_mpi.py ${ASTER_DIRECTORY}/aster/lib/scif_mpi.py
 ADD aster.wafcfg_scif_boost.py ${ASTER_DIRECTORY}/aster/lib/scif_boost.py
