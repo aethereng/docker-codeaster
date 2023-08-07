@@ -10,6 +10,7 @@ def configure(self):
     self.env.INCLUDES_BOOST = '/usr/include'
     self.env.LIBPATH_BOOST = ['/usr/lib/x86_64-linux-gnu']
     self.env.LIB_BOOST = ['boost_python3']
+    self.env.WAFBUILD_ENV = ['/aster/aster/lib/dummy.env']
 
     self.env.append_value('LIBPATH', [       
         '/aster/hdf5/lib',
