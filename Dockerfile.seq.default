@@ -73,6 +73,13 @@ WORKDIR ${TEMP_DIRECTORY}/aster
 
 ENV CONFIG_PARAMETERS_addmem=4096
 
+# set Code Aster package version
+ADD add_version.sh .
+ADD aster_pkginfo.pytmpl .
+RUN chmod +x add_version.sh
+RUN ./add_version.sh ${VERSION_ASTER}
+RUN cp pkginfo.py ${TEMP_DIRECTORY}/aster/data/aster_pkginfo.py
+
 # install
 RUN ./waf distclean
 RUN ./waf configure \
