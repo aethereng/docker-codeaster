@@ -6,9 +6,13 @@ import subprocess
 def get_git_commit_hash_and_branch(directory):
     try:
         commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=directory).strip().decode('utf-8')
+
         branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], cwd=directory).strip().decode(
             'utf-8')
-        # branch = subprocess.check_output(['git', 'describe', '--tags', '--exact-match'], cwd=directory).strip().decode('utf-8')
+
+        if branch == 'HEAD':
+            # the branch is in a detached head because we've cloned using a tag
+            branch = subprocess.check_output(['git', 'describe', '--tags', '--exact-match'], cwd=directory).strip().decode('utf-8')
 
         return commit_hash, branch
     except subprocess.CalledProcessError:
