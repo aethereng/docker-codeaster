@@ -16,7 +16,7 @@ TEMPLATE_FILE="aster_pkginfo.pytmpl"
 OUTPUT_FILE="pkginfo.py"
 
 # Use sed to replace the placeholders with the actual values
-sed -e "s|@VERSION_INFO@|$VERSION_INFO|g" \
+sed -e "s|*@VERSION_INFO@|'$VERSION_INFO'|g" \
     $TEMPLATE_FILE > $OUTPUT_FILE
 
 echo "pkginfo.py has been created!"

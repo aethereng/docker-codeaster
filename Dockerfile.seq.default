@@ -78,7 +78,7 @@ ADD add_version.sh .
 ADD aster_pkginfo.pytmpl .
 RUN chmod +x add_version.sh
 RUN ./add_version.sh ${VERSION_ASTER}
-RUN cp pkginfo.py ${TEMP_DIRECTORY}/aster/data/aster_pkginfo.py
+RUN cp pkginfo.py ${TEMP_DIRECTORY}/aster/code_aster/pkginfo.py
 
 # install
 RUN ./waf distclean

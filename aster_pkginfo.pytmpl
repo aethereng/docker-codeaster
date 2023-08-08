@@ -1,27 +1,28 @@
-# coding=utf-8
-# --------------------------------------------------------------------
-# Copyright (C) 1991 - 2020 - EDF R&D - www.code-aster.org
-# This file is part of code_aster.
-#
-# code_aster is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# code_aster is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with code_aster.  If not, see <http://www.gnu.org/licenses/>.
-# --------------------------------------------------------------------
-
+import os
 from collections import namedtuple
+from time import strftime
+import subprocess
 
-version_info = namedtuple('aster_version_info', [
-'version', 'parentid', 'branch', 'date', 'from_branch', 'changes', 'uncommitted'
-])(
-*@VERSION_INFO@
+def get_git_commit_hash_and_branch(directory):
+    try:
+        commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=directory).strip().decode('utf-8')
+        branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], cwd=directory).strip().decode(
+            'utf-8')
+        # branch = subprocess.check_output(['git', 'describe', '--tags', '--exact-match'], cwd=directory).strip().decode('utf-8')
+
+        return commit_hash, branch
+    except subprocess.CalledProcessError:
+        print("An error occurred while accessing Git information.")
+        return None, None
+
+chash, bname = get_git_commit_hash_and_branch(os.getenv('TEMP_DIRECTORY') +'/aster')
+
+pkginfo =(
+tuple([int(x) for x in *@VERSION_INFO@.split('.')]),
+    chash,
+    bname,
+    strftime("%d/%m/%Y"),
+    "n/a",
+    1,
+    ["no source repository"],
 )
-
