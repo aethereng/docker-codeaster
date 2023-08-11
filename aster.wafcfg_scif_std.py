@@ -7,6 +7,7 @@ def configure(self):
     self.env['TFELHOME'] = '/aster/tfel'
     self.env['TFELVERS'] = '3.4.0'
     # self.env['CATALO_CMD'] = "DUMMY="
+    self.env.WAFBUILD_ENV = ['/aster/aster/lib/dummy.env']
 
     self.env.append_value('LIBPATH', [
         '/aster/hdf5/lib',
