@@ -90,6 +90,13 @@ ENV CONFIG_PARAMETERS_mpiexec="mpirun -np %(mpi_nbcpu)s --hostfile %(mpi_hostfil
 ENV CONFIG_PARAMETERS_mpi_get_rank="echo ${OMPI_COMM_WORLD_RANK}"
 ENV CATALO_CMD="DUMMY="
 
+# set Code Aster package version
+ADD add_version.sh .
+ADD aster_pkginfo.pytmpl .
+RUN chmod +x add_version.sh
+RUN ./add_version.sh ${VERSION_ASTER}
+RUN cp pkginfo.py ${TEMP_DIRECTORY}/aster/code_aster/pkginfo.py
+
 # install
 RUN ./waf_mpi distclean
 RUN ./waf_mpi configure \
