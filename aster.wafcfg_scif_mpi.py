@@ -1,3 +1,5 @@
+import platform
+
 def configure(self):
     opts = self.options
 
@@ -6,9 +8,9 @@ def configure(self):
     self.env['TFELHOME'] = '/aster/tfel'
     self.env['TFELVERS'] = '3.4.0'
     self.env['CATALO_CMD'] = "DUMMY="
-    
+
     self.env.INCLUDES_BOOST = '/usr/include'
-    self.env.LIBPATH_BOOST = ['/usr/lib/x86_64-linux-gnu']
+    self.env.LIBPATH_BOOST = ['/usr/lib/%s-linux-gnu' % platform.machine()]
     self.env.LIB_BOOST = ['boost_python3']
     self.env.WAFBUILD_ENV = ['/aster/aster/lib/dummy.env']
 

@@ -59,7 +59,7 @@ ENV PATH=$ASTER_DIRECTORY/devtools/bin:$PATH
 ENV LD_LIBRARY_PATH=$ASTER_DIRECTORY/devtools/lib:$LD_LIBRARY_PATH
 
 # # # create symlink to lib64
-RUN ln -s /usr/lib/x86_64-linux-gnu/ /usr/lib64
+RUN ln -s /usr/lib/$(uname -m)-linux-gnu/ /usr/lib64
 
 WORKDIR ${TEMP_DIRECTORY}
 # clone aster
@@ -70,6 +70,10 @@ ENV VERSION_DEVTOOLS=default
 RUN hg clone -r ${VERSION_DEVTOOLS} http://hg.code.sf.net/p/codeaster/devtools devtools
 
 WORKDIR ${TEMP_DIRECTORY}/aster
+
+# upstream only enables 64-bit Fortran integers on x86_64; extend to any 64-bit
+# arch (e.g. aarch64), matching the check already used elsewhere in this wscript
+RUN sed -i "s/self.env.DEST_CPU == 'x86_64'/self.env.DEST_CPU.endswith('64')/g" bibfor/wscript
 
 ENV CONFIG_PARAMETERS_addmem=4096
 
