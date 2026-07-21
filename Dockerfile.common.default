@@ -81,7 +81,9 @@ RUN wget --no-check-certificate \
 
 # download MED
 WORKDIR ${TEMP_DIRECTORY}/med
+# files.salome-platform.org blocks the default wget/curl User-Agent (WAF "badbots" rule)
 RUN wget --no-check-certificate \
+    --user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36" \
     http://files.salome-platform.org/Salome/medfile/med-${VERSION_MED}.tar.gz \
     -O med.tar.gz && tar xf med.tar.gz -C . --strip-components 1 && rm med.tar.gz
 
@@ -183,7 +185,7 @@ RUN cmake .. \
     -Denable-portable-build=ON \
     -DPython_ADDITIONAL_VERSIONS=3.6 -Denable-python=ON \
     -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3 \
-    -DPYTHON_LIBRARY:FILEPATH=/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu/libpython3.6.so \
+    -DPYTHON_LIBRARY:FILEPATH=/usr/lib/python3.6/config-3.6m-$(uname -m)-linux-gnu/libpython3.6.so \
     -DPYTHON_INCLUDE_DIR:PATH=/usr/include/python3.6 \
     -DCMAKE_INSTALL_PREFIX=${ASTER_DIRECTORY}/tfel
 RUN make -j $(nproc) install
@@ -229,16 +231,18 @@ RUN LIBPATH="${ASTER_DIRECTORY}/scotch_seq/lib ${ASTER_DIRECTORY}/metis/lib ${AS
     INCLUDES="${ASTER_DIRECTORY}/scotch_seq/include ${ASTER_DIRECTORY}/metis/include ${ASTER_DIRECTORY}/parmetis/include" \
     python3 ./waf configure \
         --prefix=${ASTER_DIRECTORY}/mumps_seq
-RUN python3 ./waf build
+# -j1: parallel gfortran module (.mod) compilation races in MUMPS's Fortran sources
+RUN python3 ./waf build -j1
 RUN python3 ./waf install
 # build+install mumps parallel
 WORKDIR ${TEMP_DIRECTORY}/mumps_mpi
 RUN LIBPATH="${ASTER_DIRECTORY}/scotch_mpi/lib ${ASTER_DIRECTORY}/metis/lib ${ASTER_DIRECTORY}/parmetis/lib" \
     INCLUDES="${ASTER_DIRECTORY}/scotch_mpi/include ${ASTER_DIRECTORY}/metis/include ${ASTER_DIRECTORY}/parmetis/include" \
     python3 ./waf configure --enable-mpi --enable-openmp --enable-metis --enable-parmetis --enable-scotch \
-        --prefix=${ASTER_DIRECTORY}/mumps_mpi --install-tests 
-RUN python3 ./waf build
-RUN python3 ./waf install 
+        --prefix=${ASTER_DIRECTORY}/mumps_mpi --install-tests
+# -j1: parallel gfortran module (.mod) compilation races in MUMPS's Fortran sources
+RUN python3 ./waf build -j1
+RUN python3 ./waf install
 
 ######################################
 # PETSC

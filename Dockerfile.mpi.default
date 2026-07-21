@@ -71,7 +71,7 @@ ENV LD_LIBRARY_PATH=$ASTER_DIRECTORY/devtools/lib:$LD_LIBRARY_PATH
 ENV ENABLE_MPI=1
 
 # create symlink to lib64
-RUN ln -s /usr/lib/x86_64-linux-gnu/ /usr/lib64
+RUN ln -s /usr/lib/$(uname -m)-linux-gnu/ /usr/lib64
 
 WORKDIR ${TEMP_DIRECTORY}
 # clone aster
@@ -84,6 +84,9 @@ RUN hg clone -r ${VERSION_DEVTOOLS} http://hg.code.sf.net/p/codeaster/devtools d
 WORKDIR ${TEMP_DIRECTORY}/aster
 
 RUN sed -i 's/self.check_mpi_get_rank()/#self.check_mpi_get_rank()/g' data/wscript
+# upstream only enables 64-bit Fortran integers on x86_64; extend to any 64-bit
+# arch (e.g. aarch64), matching the check already used elsewhere in this wscript
+RUN sed -i "s/self.env.DEST_CPU == 'x86_64'/self.env.DEST_CPU.endswith('64')/g" bibfor/wscript
 
 ENV CONFIG_PARAMETERS_addmem=4096
 ENV CONFIG_PARAMETERS_mpiexec="mpirun -np %(mpi_nbcpu)s --hostfile %(mpi_hostfile)s %(program)s --allow-run-as-root"
